@@ -1,27 +1,37 @@
 package sim
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
+
+var gnd, vdd = w(), w()
 
 func setup() {
-	gnd, vdd := w(), w()
-	addModule(&Static{gnd, 0, "Gnd"})
-	addModule(&Static{vdd, 1, "Vdd"})
+	addDevice(&Static{gnd, 0, "Gnd"})
+	addDevice(&Static{vdd, 1, "Vdd"})
+}
+
+func buildClock(name string, duration int) (out int) {
+	out = w()
+	addDevice(&Clock{vdd, gnd, out, duration, name, false, duration})
+	return
 }
 
 func buildNandGate(name string) (in1, in2, out int) {
 	in1, in2, out = w(), w(), w()
 	out2 := w()
-	addModule(&Mos{1, in1, out, true, name + ".p0"})
-	addModule(&Mos{1, in2, out, true, name + ".p1"})
-	addModule(&Mos{0, in2, out2, false, name + ".n1"})
-	addModule(&Mos{out2, in1, out, false, name + ".n0"})
+	addDevice(&Mos{vdd, in1, out, true, name + ".p0"})
+	addDevice(&Mos{vdd, in2, out, true, name + ".p1"})
+	addDevice(&Mos{gnd, in2, out2, false, name + ".n1"})
+	addDevice(&Mos{out2, in1, out, false, name + ".n0"})
 	return
 }
 
 func buildNotGate(name string) (in, out int) {
 	in, out = w(), w()
-	addModule(&Mos{1, in, out, true, name + ".p"})
-	addModule(&Mos{0, in, out, false, name + ".n"})
+	addDevice(&Mos{vdd, in, out, true, name + ".p"})
+	addDevice(&Mos{gnd, in, out, false, name + ".n"})
 	return
 }
 
@@ -37,6 +47,21 @@ func buildSomeNands(name string, countNand int) (in1, in2, out []int) {
 		})
 	}
 	return in1, in2, out
+}
+
+func bondNand(name string, in1, in2 int) (out int) {
+	var _in1, _in2 int
+	_in1, _in2, out = buildNandGate(name)
+	bond(in1, _in1)
+	bond(in2, _in2)
+	monitor(map[int]string{
+		in1:  name + ".in1",
+		in2:  name + ".in2",
+		_in1: name + ".in1",
+		_in2: name + ".in2",
+		out:  name + ".out",
+	})
+	return
 }
 
 func buildRSLatch(name string) (si, ri, q, qi int) {
@@ -101,5 +126,64 @@ func buildDFlipFlop(name string) (clk, d, q int) {
 	bond(q2, q)
 
 	monitor(map[int]string{clk1: "~CLK", q1: "Q1"})
+	return
+}
+
+func buildHalfAdder(name string) (a, b, c, s int) {
+	a, b, c, s = w(), w(), w(), w()
+
+	o0 := bondNand(name+".nand0", a, b)
+	o1 := bondNand(name+".nand1", a, o0)
+	o2 := bondNand(name+".nand2", b, o0)
+	s = bondNand(name+".nand3", o1, o2)
+
+	notin, notout := buildNotGate(name + ".not")
+	bond(o0, notin)
+	bond(notout, c)
+
+	monitor(map[int]string{
+		a: name + ".A",
+		b: name + ".B",
+		c: name + ".C",
+		s: name + ".S",
+	})
+
+	return
+}
+
+func buildFullAdder(name string) (a, b, x, c, s int) {
+	a, b, x, c, s = w(), w(), w(), w(), w()
+
+	o0 := bondNand(name+".nand0", a, b)
+	o1 := bondNand(name+".nand1", a, o0)
+	o2 := bondNand(name+".nand2", b, o0)
+	o3 := bondNand(name+".nand3", o1, o2)
+	o4 := bondNand(name+".nand4", o3, x)
+	o5 := bondNand(name+".nand5", o3, o4)
+	o6 := bondNand(name+".nand6", o4, x)
+	s = bondNand(name+".nand7", o5, o6)
+	c = bondNand(name+".nand8", o0, o4)
+
+	monitor(map[int]string{
+		a: name + ".A",
+		b: name + ".B",
+		x: name + ".X",
+		c: name + ".c",
+		s: name + ".S",
+	})
+
+	return
+}
+
+func buildNbitAdder(name string, bits int) (a, b []int, c int, s []int) {
+	a, b, s = make([]int, bits), make([]int, bits), make([]int, bits)
+	var lowC int
+	a[0], b[0], lowC, s[0] = buildHalfAdder(name + ".ha")
+	for i := 1; i < bits; i++ {
+		var x int
+		a[i], b[i], x, c, s[i] = buildFullAdder(name + ".fa" + fmt.Sprintf("%d", i))
+		bond(lowC, x)
+		lowC = c
+	}
 	return
 }
