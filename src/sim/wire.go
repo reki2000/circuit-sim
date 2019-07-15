@@ -1,31 +1,52 @@
 package sim
 
-const numWires = 100
+type Wires struct {
+	wire      []int
+	maxWireID int
+	from      [][]int
+	monitee   map[int]string
+}
 
-var wire [numWires]int
-var maxWireID = -1
+func NewWire() *Wires {
+	numWires := 1000
+	return &Wires{make([]int, numWires), -1, make([][]int, numWires), map[int]string{}}
+}
 
-func w() int {
-	if maxWireID >= len(wire)-1 {
+func (w *Wires) w() int {
+	if w.maxWireID >= len(w.wire)-1 {
 		panic("too many wires")
 	}
-	maxWireID++
-	return maxWireID
+	w.maxWireID++
+	return w.maxWireID
 }
 
-var net struct {
-	from [numWires][]int
+func (w *Wires) set(id, val int) {
+	w.wire[id] = val
 }
 
-func bond(w1, w2 int) {
+func (w *Wires) get(id int) int {
+	return w.wire[id]
+}
+
+func (w *Wires) bond(w1, w2 int) {
 	//fmt.Printf(" bonding %d to %d\n", w1, w2)
-	if net.from[w1] != nil {
-		net.from[w1] = append(net.from[w1], w2)
+	if w.from[w1] != nil {
+		w.from[w1] = append(w.from[w1], w2)
 	} else {
-		net.from[w1] = []int{w2}
+		w.from[w1] = []int{w2}
 	}
 }
 
-func listBonded(w int) []int {
-	return net.from[w]
+func (w *Wires) listBonded(id int) []int {
+	return w.from[id]
+}
+
+func (w *Wires) monitor(id int, name string) {
+	w.monitee[id] = name
+}
+
+func (w *Wires) monitor2(targets map[int]string) {
+	for k, v := range targets {
+		w.monitor(k, v)
+	}
 }

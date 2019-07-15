@@ -6,9 +6,9 @@ type Static struct {
 	name string
 }
 
-func (m *Static) Simulate(visited []int) []int {
+func (m *Static) Simulate(w *Wires, visited []int) []int {
 	if !contains(visited, m.out) {
-		wire[m.out] = m.v
+		w.set(m.out, m.v)
 		return []int{m.out}
 	}
 	return []int{}
@@ -23,12 +23,12 @@ type Mos struct {
 	name    string
 }
 
-func (m *Mos) Simulate(visited []int) []int {
-	s, g := wire[m.s], wire[m.g]
+func (m *Mos) Simulate(w *Wires, visited []int) []int {
+	s, g := w.get(m.s), w.get(m.g)
 	if contains(visited, m.s) {
 		if (m.typeP && g < s) || (!m.typeP && g > s) {
-			if wire[m.d] != wire[m.s] || !contains(visited, m.d) {
-				wire[m.d] = wire[m.s]
+			if w.get(m.d) != s || !contains(visited, m.d) {
+				w.set(m.d, s)
 				return []int{m.d}
 			}
 		}
@@ -49,12 +49,12 @@ type Clock struct {
 	count    int
 }
 
-func (c *Clock) Simulate(visited []int) []int {
+func (c *Clock) Simulate(w *Wires, visited []int) []int {
 	if !contains(visited, c.out) {
 		if c.on {
-			wire[c.out] = wire[c.vcc]
+			w.set(c.out, w.get(c.vcc))
 		} else {
-			wire[c.out] = wire[c.gnd]
+			w.set(c.out, w.get(c.gnd))
 		}
 		c.count--
 		if c.count <= 0 {
