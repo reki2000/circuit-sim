@@ -13,8 +13,7 @@ func NewSimulation(c *Circuit) *Simulation {
 	return &Simulation{Circuit: c, records: []map[int]int{}}
 }
 
-func (s *Simulation) resetRecord() {
-	s.monitee = map[int]string{}
+func (s *Simulation) reset() {
 	s.records = []map[int]int{}
 }
 
@@ -80,32 +79,23 @@ func wireValueToChar(value int) string {
 }
 
 func runScenario2(c *Circuit, scenario2 map[int]string, debugName string) map[string]string {
-	scenario := map[int][]int{}
+	play := []map[int]int{}
 	for k, v := range scenario2 {
-		newValues := make([]int, len(v))
 		for i, ch := range v {
 			val := 0
 			if ch == 'H' {
 				val = 1
 			}
-			newValues[i] = val
-		}
-		scenario[k] = newValues
-	}
-	return runScenario(c, scenario, debugName)
-}
-
-func runScenario(c *Circuit, scenario map[int][]int, debugName string) map[string]string {
-	play := []map[int]int{}
-	for k, v := range scenario {
-		for t, val := range v {
-			if len(play) <= t {
+			if len(play) <= i {
 				play = append(play, make(map[int]int))
 			}
-			play[t][k] = val
+			play[i][k] = val
 		}
 	}
+	return runScenario(c, play, debugName)
+}
 
+func runScenario(c *Circuit, play []map[int]int, debugName string) map[string]string {
 	s := NewSimulation(c)
 	for t, set := range play {
 		for k, v := range set {

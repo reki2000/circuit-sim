@@ -48,7 +48,7 @@ func (c *Circuit) visit(fillValue int, start int, visited []int, debug bool) []i
 	return visited
 }
 
-const simulationLoopCount = 10
+const simulationLoopCount = 5
 
 func (c *Circuit) simulateAll(debugName string) bool {
 	visited := []int{}
@@ -76,7 +76,4 @@ func (c *Circuit) simulateAll(debugName string) bool {
 		return false
 	}
 	return true
-}
-
-func Test() {
 }
