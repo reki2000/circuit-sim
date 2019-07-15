@@ -152,3 +152,28 @@ func (c *Circuit) buildNbitAdder(name string, bits int) (a, b []int, ca int, s [
 	}
 	return
 }
+
+func (ci *Circuit) buildNbitDFlipFlop(name string, bits int) (d, q []int, clk int) {
+	clk = ci.w()
+	d, q = make([]int, bits), make([]int, bits)
+	for i := 0; i < bits; i++ {
+		var _clk int
+		_clk, d[i], q[i] = ci.buildDFlipFlop(name + fmt.Sprintf("%d", i))
+		ci.bond(clk, _clk)
+	}
+	return
+}
+
+func (ci *Circuit) buildNbitConstant(name string, bits int, val int) (q []int) {
+	q = make([]int, bits)
+	for i := 0; i < bits; i++ {
+		q[i] = ci.w()
+		if (val & 1) == 1 {
+			ci.bond(ci.vdd, q[i])
+		} else {
+			ci.bond(ci.gnd, q[i])
+		}
+		val >>= 1
+	}
+	return
+}

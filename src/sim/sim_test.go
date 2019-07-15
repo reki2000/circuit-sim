@@ -130,3 +130,23 @@ func TestNbitAdder(t *testing.T) {
 	}
 
 }
+
+func TestNbitConstant(t *testing.T) {
+	ci := NewCircuit()
+
+	c := ci.buildNbitConstant("test", 4, 5)
+	ci.monitor(c[0], "C0")
+	ci.monitor(c[1], "C1")
+	ci.monitor(c[2], "C2")
+	ci.monitor(c[3], "C3")
+
+	dummy := ci.w()
+	scenario := map[int]string{
+		dummy: ".",
+	}
+	result := runScenario2(ci, scenario, "")
+
+	if result["C0"]+result["C1"]+result["C2"]+result["C3"] != "H.H." {
+		t.Error(result)
+	}
+}

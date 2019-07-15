@@ -1,5 +1,7 @@
 package sim
 
+import "fmt"
+
 type Wires struct {
 	wire      []int
 	maxWireID int
@@ -34,6 +36,15 @@ func (w *Wires) bond(w1, w2 int) {
 		w.from[w1] = append(w.from[w1], w2)
 	} else {
 		w.from[w1] = []int{w2}
+	}
+}
+
+func (w *Wires) bondWires(w1, w2 []int) {
+	if len(w1) != len(w2) {
+		panic(fmt.Sprintf("bonding length mismatched wires:%v to %v\n", w1, w2))
+	}
+	for i, v := range w1 {
+		w.bond(v, w2[i])
 	}
 }
 
