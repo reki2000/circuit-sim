@@ -2,6 +2,12 @@ package sim
 
 import "strconv"
 
+func setup() {
+	gnd, vdd := w(), w()
+	addModule(&Static{gnd, 0, "Gnd"})
+	addModule(&Static{vdd, 1, "Vdd"})
+}
+
 func buildNandGate(name string) (in1, in2, out int) {
 	in1, in2, out = w(), w(), w()
 	out2 := w()
@@ -78,48 +84,22 @@ func buildGatedDLatch(name string) (clk, d, q int) {
 func buildDFlipFlop(name string) (clk, d, q int) {
 	clk, d, q = w(), w(), w()
 
-	noti, noto := [3]int{}, [3]int{}
-	for i := 0; i < 3; i++ {
-		noti[i], noto[i] = buildNotGate(name + ".not" + string(i))
-	}
-	in1, in2, out := buildSomeNands(name, 8)
+	notin, notout := buildNotGate(name + ".not")
+	clk1, d1, q1 := buildGatedDLatch(name + ".d1")
+	clk2, d2, q2 := buildGatedDLatch(name + ".d2")
 
-	// clk ot not0
-	bond(clk, noti[0])
+	// clk ot not
+	bond(clk, notin)
 
 	// not0 to nand0, nand1, not1
-	bond(noto[0], in2[0])
-	bond(noto[0], in2[1])
-	bond(noto[0], noti[1])
+	bond(clk, clk2)
+	bond(notout, clk1)
+	bond(d, d1)
+	bond(q1, d2)
 
 	// d to nand0, not2
-	bond(d, in1[0])
-	bond(d, noti[2])
+	bond(q2, q)
 
-	// not2 to nand1
-	bond(noto[2], in1[1])
-
-	// first RS latch
-	bond(out[0], in1[2])
-	bond(out[1], in2[3])
-	bond(out[2], in1[3])
-	bond(out[3], in2[2])
-
-	// first RS latch to second
-	bond(out[2], in1[4])
-	bond(out[3], in1[5])
-
-	// not1 to nadn4, nand5
-	bond(noto[1], in2[4])
-	bond(noto[1], in2[5])
-
-	// final RS latch
-	bond(out[4], in1[6])
-	bond(out[5], in2[7])
-	bond(out[6], in1[7])
-	bond(out[7], in2[6])
-
-	// output
-	bond(out[6], q)
+	monitor(map[int]string{clk1: "~CLK", q1: "Q1"})
 	return
 }

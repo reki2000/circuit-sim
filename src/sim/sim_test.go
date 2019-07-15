@@ -5,14 +5,15 @@ import "testing"
 func TestRSLatch(t *testing.T) {
 	setup()
 	s, r, q, _ := buildRSLatch("test")
-	scenario := map[int][]int{
-		r: {1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1},
-		s: {1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1},
+
+	scenario2 := map[int]string{
+		r: "HHHHH.HHHHH",
+		s: "H.HHHHHHH.H",
 	}
 	monitor(map[int]string{r: "r", s: "s", q: "q"})
-	result := runScenario(scenario, "")
+	result := runScenario2(scenario2, "")
 
-	if result["q"] != "HHHHH____HH" {
+	if result["q"] != "HHHHH....HH" {
 		t.Error()
 	}
 }
@@ -22,34 +23,33 @@ func TestGatedDLatch(t *testing.T) {
 
 	clk, d, q := buildGatedDLatch("d0")
 
-	scenario := map[int][]int{
-		clk: {1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0},
-		d:   {1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0},
+	scenario2 := map[int]string{
+		clk: "H...H.H....HHH.H.HHH.HH...",
+		d:   "H.......HH.H......H..H....",
 	}
 
 	monitor(map[int]string{clk: "CLK", d: "D", q: "Q"})
-	result := runScenario(scenario, "")
+	result := runScenario2(scenario2, "")
 
-	if result["Q"] != "HHHH_______H______H__H____" {
+	if result["Q"] != "HHHH.......H......H..H...." {
 		t.Error()
 	}
 }
 
-func TestGatedDLatch2(t *testing.T) {
+func TestDFlipFlop(t *testing.T) {
 	setup()
 
-	clk, d, q := buildGatedDLatch("d0")
+	clk, d, q := buildDFlipFlop("d")
 
-	// wireID: { value series for each t ...}
-	scenario := map[int][]int{
-		clk: {1, 1},
-		d:   {1, 0},
+	scenario2 := map[int]string{
+		clk: ".H..H.H....HHH.H.HHH.HH...",
+		d:   "HH......HHHH......H..H....",
 	}
 
 	monitor(map[int]string{clk: "CLK", d: "D", q: "Q"})
-	result := runScenario(scenario, "d0.nand3.n")
+	result := runScenario2(scenario2, "")
 
-	if result["Q"] != "H_" {
+	if result["Q"] != "HHHH.......HHHH..........." {
 		t.Error()
 	}
 }

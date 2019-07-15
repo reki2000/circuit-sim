@@ -2,15 +2,25 @@ package sim
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 )
 
-var wire [100]int
+const numWires = 100
+
+var wire [numWires]int
+var maxWireID = -1
+
+func w() int {
+	if maxWireID >= len(wire)-1 {
+		panic("too many wires")
+	}
+	maxWireID++
+	return maxWireID
+}
 
 var net struct {
-	from [100][]int
-	to   [100][]int
+	from [numWires][]int
+	to   [numWires][]int
 }
 
 func bond(w1, w2 int) {
@@ -32,78 +42,10 @@ func listBonded(w int) []int {
 	return append(net.from[w], net.to[w]...)
 }
 
-func pop(in []int) (int, []int) {
-	if len(in) == 0 {
-		panic("pop from empty")
-	}
-	if len(in) == 1 {
-		return in[0], []int{}
-	}
-	return in[0], in[1:]
-}
-
-func contains(in []int, v int) bool {
-	for _, val := range in {
-		if val == v {
-			return true
-		}
-	}
-	return false
-}
-
-func push(in []int, v int) []int {
-	if !contains(in, v) {
-		return append(in, v)
-	}
-	return in
-}
-
 type Simulatable interface {
 	Simulate([]int) []int
 	Name() string
 }
-
-type Mos struct {
-	s, g, d int
-	typeP   bool
-	name    string
-}
-
-type Static struct {
-	out  int
-	v    int
-	name string
-}
-
-func (m *Static) Simulate(visited []int) []int {
-	if !contains(visited, m.out) {
-		wire[m.out] = m.v
-		return []int{m.out}
-	}
-	return []int{}
-}
-func (m *Static) Name() string {
-	return m.name
-}
-
-func (m *Mos) Simulate(visited []int) []int {
-	s, g := wire[m.s], wire[m.g]
-	if contains(visited, m.s) {
-		if (m.typeP && g < s) || (!m.typeP && g > s) {
-			if wire[m.d] != wire[m.s] || !contains(visited, m.d) {
-				wire[m.d] = wire[m.s]
-				return []int{m.d}
-			}
-		}
-	}
-	return []int{}
-}
-
-func (m *Mos) Name() string {
-	return m.name
-}
-
-var modules []Simulatable
 
 func visit(fillValue int, start int, visited []int, debug bool) []int {
 	waiting := []int{start}
@@ -123,7 +65,7 @@ func visit(fillValue int, start int, visited []int, debug bool) []int {
 	return visited
 }
 
-func simulateAll(debugName string) {
+func simulateAll(debugName string) bool {
 	visited := []int{}
 	updated := true
 	for loop := 0; loop < 5 && updated; loop++ {
@@ -146,9 +88,12 @@ func simulateAll(debugName string) {
 		}
 	}
 	if updated {
-		fmt.Println("Simulation instable !!!!!!!!!!!!!!!!!!!!!!")
+		return false
 	}
+	return true
 }
+
+var modules []Simulatable
 
 func addModule(m Simulatable) {
 	modules = append(modules, m)
@@ -169,28 +114,11 @@ func formatWire(visited []int) string {
 	return result + "\n"
 }
 
-var monitee = map[int]string{}
-var records = []map[int]int{}
-
-func monitor(targets map[int]string) {
-	for k, v := range targets {
-		monitee[k] = v
-	}
-}
-
-func record() {
-	r := map[int]int{}
-	for k := range monitee {
-		r[k] = wire[k]
-	}
-	records = append(records, r)
-}
-
 func wireValueToChar(value int) string {
 	var ch string
 	switch value {
 	case 0:
-		ch = "_"
+		ch = "."
 	case 1:
 		ch = "H"
 	default:
@@ -199,22 +127,20 @@ func wireValueToChar(value int) string {
 	return ch
 }
 
-func showRecords() (out map[string]string) {
-	out = map[string]string{}
-	keys := []int{}
-	for k := range monitee {
-		keys = append(keys, k)
-	}
-	sort.Ints(keys)
-	for _, k := range keys {
-		r := ""
-		for t := 0; t < len(records); t++ {
-			r += fmt.Sprintf("%s", wireValueToChar(records[t][k]))
+func runScenario2(scenario2 map[int]string, debugName string) map[string]string {
+	scenario := map[int][]int{}
+	for k, v := range scenario2 {
+		newValues := make([]int, len(v))
+		for i, ch := range v {
+			val := 0
+			if ch == 'H' {
+				val = 1
+			}
+			newValues[i] = val
 		}
-		out[monitee[k]] = r
-		fmt.Println(fmt.Sprintf("%20s[%03d]: ", monitee[k], k) + r)
+		scenario[k] = newValues
 	}
-	return
+	return runScenario(scenario, debugName)
 }
 
 func runScenario(scenario map[int][]int, debugName string) map[string]string {
@@ -227,43 +153,20 @@ func runScenario(scenario map[int][]int, debugName string) map[string]string {
 			play[t][k] = val
 		}
 	}
-	for _, set := range play {
+	for t, set := range play {
 		for k, v := range set {
 			visit(v, k, []int{}, false)
 		}
-		simulateAll(debugName)
-		record()
+		result := simulateAll(debugName)
+		if !result {
+			fmt.Printf("#%3d: Simulation instable !!!!!!!!!!!!!!!!!!!!!!\n", t)
+			record()
+		} else {
+			record()
+		}
 	}
 	return showRecords()
 }
 
-var maxWireID = -1
-
-func w() int {
-	if maxWireID >= len(wire)-1 {
-		panic("too many wires")
-	}
-	maxWireID++
-	return maxWireID
-}
-
-func setup() {
-	gnd, vdd := w(), w()
-	addModule(&Static{gnd, 0, "Gnd"})
-	addModule(&Static{vdd, 1, "Vdd"})
-}
-
 func Test() {
-	setup()
-
-	clk, d, q := buildGatedDLatch("d0")
-
-	// wireID: { value series for each t ...}
-	scenario := map[int][]int{
-		clk: {1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0},
-		d:   {1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0},
-	}
-
-	monitor(map[int]string{clk: "CLK", d: "D", q: "Q"})
-	runScenario(scenario, "")
 }
