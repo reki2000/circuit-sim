@@ -78,6 +78,14 @@ func wireValueToChar(value int) string {
 	return ch
 }
 
+func runScenario3(c *Circuit, loop int, debugName string) map[string]string {
+	play := make([]map[int]int, loop)
+	for i := range play {
+		play[i] = map[int]int{}
+	}
+	return runScenario(c, play, debugName)
+}
+
 func runScenario2(c *Circuit, scenario2 map[int]string, debugName string) map[string]string {
 	play := []map[int]int{}
 	for k, v := range scenario2 {

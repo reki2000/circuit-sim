@@ -61,11 +61,7 @@ func TestClock(t *testing.T) {
 	clk := ci.buildClock("CLK", 10)
 	ci.monitor(clk, "CLK")
 
-	dummy := ci.w()
-	scenario := map[int]string{
-		dummy: "............................................................",
-	}
-	result := runScenario2(ci, scenario, "")
+	result := runScenario3(ci, 60, "")
 
 	if result["CLK"] != "..........HHHHHHHHHH..........HHHHHHHHHH..........HHHHHHHHHH" {
 		t.Error(result)

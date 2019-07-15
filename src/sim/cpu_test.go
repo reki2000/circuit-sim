@@ -15,13 +15,9 @@ func TestIP(t *testing.T) {
 	ci.monitor(ip[2], "IP2")
 	ci.monitor(ip[3], "IP3")
 
-	dummy := ci.w()
-	scenario := map[int]string{
-		dummy: "............................................................................",
-	}
-	result := runScenario2(ci, scenario, "")
+	result := runScenario3(ci, 72, "")
 
-	if result["IP0"] != "HH..HH..HH..HH..HH..HH..HH..HH..HH..HH..HH..HH..HH..HH..HH..HH..HH..HH..HH.." {
+	if result["IP0"] != "HH..HH..HH..HH..HH..HH..HH..HH..HH..HH..HH..HH..HH..HH..HH..HH..HH..HH.." {
 		t.Error(result)
 	}
 
