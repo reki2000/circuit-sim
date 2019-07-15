@@ -5,75 +5,56 @@ import (
 	"strconv"
 )
 
-var gnd, vdd = w(), w()
-
-func setup() {
-	addDevice(&Static{gnd, 0, "Gnd"})
-	addDevice(&Static{vdd, 1, "Vdd"})
-}
-
-func buildClock(name string, duration int) (out int) {
-	out = w()
-	addDevice(&Clock{vdd, gnd, out, duration, name, false, duration})
+func (c *Circuit) buildClock(name string, duration int) (out int) {
+	out = c.w()
+	c.addDevice(&Clock{c.vdd, c.gnd, out, duration, name, false, duration})
 	return
 }
 
-func buildNandGate(name string) (in1, in2, out int) {
-	in1, in2, out = w(), w(), w()
-	out2 := w()
-	addDevice(&Mos{vdd, in1, out, true, name + ".p0"})
-	addDevice(&Mos{vdd, in2, out, true, name + ".p1"})
-	addDevice(&Mos{gnd, in2, out2, false, name + ".n1"})
-	addDevice(&Mos{out2, in1, out, false, name + ".n0"})
+func (c *Circuit) buildNandGate(name string) (in1, in2, out int) {
+	in1, in2, out = c.w(), c.w(), c.w()
+	out2 := c.w()
+	c.addDevice(&Mos{c.vdd, in1, out, true, name + ".p0"})
+	c.addDevice(&Mos{c.vdd, in2, out, true, name + ".p1"})
+	c.addDevice(&Mos{c.gnd, in2, out2, false, name + ".n1"})
+	c.addDevice(&Mos{out2, in1, out, false, name + ".n0"})
 	return
 }
 
-func buildNotGate(name string) (in, out int) {
-	in, out = w(), w()
-	addDevice(&Mos{vdd, in, out, true, name + ".p"})
-	addDevice(&Mos{gnd, in, out, false, name + ".n"})
+func (c *Circuit) buildNotGate(name string) (in, out int) {
+	in, out = c.w(), c.w()
+	c.addDevice(&Mos{c.vdd, in, out, true, name + ".p"})
+	c.addDevice(&Mos{c.gnd, in, out, false, name + ".n"})
 	return
 }
 
-func buildSomeNands(name string, countNand int) (in1, in2, out []int) {
+func (c *Circuit) buildSomeNands(name string, countNand int) (in1, in2, out []int) {
 	in1, in2, out = make([]int, countNand), make([]int, countNand), make([]int, countNand)
 	for i := 0; i < countNand; i++ {
 		myName := name + ".nand" + strconv.Itoa(i)
-		in1[i], in2[i], out[i] = buildNandGate(myName)
-		monitor(map[int]string{
-			in1[i]: myName + ".in1",
-			in2[i]: myName + ".in2",
-			out[i]: myName + ".out",
-		})
+		in1[i], in2[i], out[i] = c.buildNandGate(myName)
 	}
 	return in1, in2, out
 }
 
-func bondNand(name string, in1, in2 int) (out int) {
+func (c *Circuit) bondNand(name string, in1, in2 int) (out int) {
 	var _in1, _in2 int
-	_in1, _in2, out = buildNandGate(name)
-	bond(in1, _in1)
-	bond(in2, _in2)
-	monitor(map[int]string{
-		in1:  name + ".in1",
-		in2:  name + ".in2",
-		_in1: name + ".in1",
-		_in2: name + ".in2",
-		out:  name + ".out",
-	})
+	_in1, _in2, out = c.buildNandGate(name)
+	c.bond(in1, _in1)
+	c.bond(in2, _in2)
 	return
 }
 
-func buildRSLatch(name string) (si, ri, q, qi int) {
-	si, ri, q, qi = w(), w(), w(), w()
-	in1, in2, out := buildSomeNands(name, 2)
+func (c *Circuit) buildRSLatch(name string) (si, ri, q, qi int) {
+	si, ri, q, qi = c.w(), c.w(), c.w(), c.w()
+	in1, in2, out := c.buildSomeNands(name, 2)
 
-	bond(si, in1[0])
-	bond(ri, in1[1])
-	bond(out[0], q)
-	bond(out[0], in2[1])
-	bond(out[1], qi)
-	bond(out[1], in2[0])
+	c.bond(si, in1[0])
+	c.bond(ri, in1[1])
+	c.bond(out[0], q)
+	c.bond(out[0], in2[1])
+	c.bond(out[1], qi)
+	c.bond(out[1], in2[0])
 
 	return
 }
@@ -82,108 +63,117 @@ func buildRSLatch(name string) (si, ri, q, qi int) {
  * Gated Delayed Latch is a tranparent latch. When CLK is On, Q reflects D. During CLK is Off, Q keeps previous Q
  * see https://ja.wikipedia.org/wiki/%E3%83%A9%E3%83%83%E3%83%81%E5%9B%9E%E8%B7%AF
  */
-func buildGatedDLatch(name string) (clk, d, q int) {
-	clk, d, q = w(), w(), w()
+func (c *Circuit) buildGatedDLatch(name string) (clk, d, q int) {
+	clk, d, q = c.w(), c.w(), c.w()
 
-	in1, in2, out := buildSomeNands(name, 2)
+	in1, in2, out := c.buildSomeNands(name, 2)
 
 	// d to nand0
-	bond(d, in1[0])
+	c.bond(d, in1[0])
 
 	// clk to nand0/1
-	bond(clk, in2[0])
-	bond(clk, in2[1])
+	c.bond(clk, in2[0])
+	c.bond(clk, in2[1])
 
 	// nand0 to nand1
-	bond(out[0], in1[1])
+	c.bond(out[0], in1[1])
 
 	// first RS latch
-	si, ri, _q, _ := buildRSLatch(name + ".rs")
-	bond(out[0], si)
-	bond(out[1], ri)
+	si, ri, _q, _ := c.buildRSLatch(name + ".rs")
+	c.bond(out[0], si)
+	c.bond(out[1], ri)
 
-	bond(_q, q)
+	c.bond(_q, q)
 	return
 }
 
-func buildDFlipFlop(name string) (clk, d, q int) {
-	clk, d, q = w(), w(), w()
+func (c *Circuit) buildDFlipFlop(name string) (clk, d, q int) {
+	clk, d, q = c.w(), c.w(), c.w()
 
-	notin, notout := buildNotGate(name + ".not")
-	clk1, d1, q1 := buildGatedDLatch(name + ".d1")
-	clk2, d2, q2 := buildGatedDLatch(name + ".d2")
+	notin, notout := c.buildNotGate(name + ".not")
+	clk1, d1, q1 := c.buildGatedDLatch(name + ".d1")
+	clk2, d2, q2 := c.buildGatedDLatch(name + ".d2")
 
 	// clk ot not
-	bond(clk, notin)
+	c.bond(clk, notin)
 
 	// not0 to nand0, nand1, not1
-	bond(clk, clk2)
-	bond(notout, clk1)
-	bond(d, d1)
-	bond(q1, d2)
+	c.bond(clk, clk2)
+	c.bond(notout, clk1)
+	c.bond(d, d1)
+	c.bond(q1, d2)
 
 	// d to nand0, not2
-	bond(q2, q)
-
-	monitor(map[int]string{clk1: "~CLK", q1: "Q1"})
-	return
-}
-
-func buildHalfAdder(name string) (a, b, c, s int) {
-	a, b, c, s = w(), w(), w(), w()
-
-	o0 := bondNand(name+".nand0", a, b)
-	o1 := bondNand(name+".nand1", a, o0)
-	o2 := bondNand(name+".nand2", b, o0)
-	s = bondNand(name+".nand3", o1, o2)
-
-	notin, notout := buildNotGate(name + ".not")
-	bond(o0, notin)
-	bond(notout, c)
-
-	monitor(map[int]string{
-		a: name + ".A",
-		b: name + ".B",
-		c: name + ".C",
-		s: name + ".S",
-	})
+	c.bond(q2, q)
 
 	return
 }
 
-func buildFullAdder(name string) (a, b, x, c, s int) {
-	a, b, x, c, s = w(), w(), w(), w(), w()
+func (c *Circuit) buildHalfAdder(name string) (a, b, ca, s int) {
+	a, b, ca, s = c.w(), c.w(), c.w(), c.w()
 
-	o0 := bondNand(name+".nand0", a, b)
-	o1 := bondNand(name+".nand1", a, o0)
-	o2 := bondNand(name+".nand2", b, o0)
-	o3 := bondNand(name+".nand3", o1, o2)
-	o4 := bondNand(name+".nand4", o3, x)
-	o5 := bondNand(name+".nand5", o3, o4)
-	o6 := bondNand(name+".nand6", o4, x)
-	s = bondNand(name+".nand7", o5, o6)
-	c = bondNand(name+".nand8", o0, o4)
+	o0 := c.bondNand(name+".nand0", a, b)
+	o1 := c.bondNand(name+".nand1", a, o0)
+	o2 := c.bondNand(name+".nand2", b, o0)
+	s = c.bondNand(name+".nand3", o1, o2)
 
-	monitor(map[int]string{
-		a: name + ".A",
-		b: name + ".B",
-		x: name + ".X",
-		c: name + ".c",
-		s: name + ".S",
-	})
+	notin, notout := c.buildNotGate(name + ".not")
+	c.bond(o0, notin)
+	c.bond(notout, ca)
 
 	return
 }
 
-func buildNbitAdder(name string, bits int) (a, b []int, c int, s []int) {
+func (c *Circuit) buildFullAdder(name string) (a, b, x, ca, s int) {
+	a, b, x, ca, s = c.w(), c.w(), c.w(), c.w(), c.w()
+
+	o0 := c.bondNand(name+".nand0", a, b)
+	o1 := c.bondNand(name+".nand1", a, o0)
+	o2 := c.bondNand(name+".nand2", b, o0)
+	o3 := c.bondNand(name+".nand3", o1, o2)
+	o4 := c.bondNand(name+".nand4", o3, x)
+	o5 := c.bondNand(name+".nand5", o3, o4)
+	o6 := c.bondNand(name+".nand6", o4, x)
+	s = c.bondNand(name+".nand7", o5, o6)
+	ca = c.bondNand(name+".nand8", o0, o4)
+
+	return
+}
+
+func (c *Circuit) buildNbitAdder(name string, bits int) (a, b []int, ca int, s []int) {
 	a, b, s = make([]int, bits), make([]int, bits), make([]int, bits)
-	var lowC int
-	a[0], b[0], lowC, s[0] = buildHalfAdder(name + ".ha")
+	var lowCa int
+	a[0], b[0], lowCa, s[0] = c.buildHalfAdder(name + ".ha")
 	for i := 1; i < bits; i++ {
 		var x int
-		a[i], b[i], x, c, s[i] = buildFullAdder(name + ".fa" + fmt.Sprintf("%d", i))
-		bond(lowC, x)
-		lowC = c
+		a[i], b[i], x, ca, s[i] = c.buildFullAdder(name + ".fa" + fmt.Sprintf("%d", i))
+		c.bond(lowCa, x)
+		lowCa = ca
+	}
+	return
+}
+
+func (ci *Circuit) buildNbitDFlipFlop(name string, bits int) (d, q []int, clk int) {
+	clk = ci.w()
+	d, q = make([]int, bits), make([]int, bits)
+	for i := 0; i < bits; i++ {
+		var _clk int
+		_clk, d[i], q[i] = ci.buildDFlipFlop(name + fmt.Sprintf("%d", i))
+		ci.bond(clk, _clk)
+	}
+	return
+}
+
+func (ci *Circuit) buildNbitConstant(name string, bits int, val int) (q []int) {
+	q = make([]int, bits)
+	for i := 0; i < bits; i++ {
+		q[i] = ci.w()
+		if (val & 1) == 1 {
+			ci.bond(ci.vdd, q[i])
+		} else {
+			ci.bond(ci.gnd, q[i])
+		}
+		val >>= 1
 	}
 	return
 }

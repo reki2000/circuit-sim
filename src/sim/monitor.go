@@ -4,35 +4,35 @@ import (
 	"fmt"
 )
 
-var monitee map[int]string
-var records []map[int]int
-
-func monitor(targets map[int]string) {
-	for k, v := range targets {
-		monitee[k] = v
-	}
-}
-func resetRecord() {
-	monitee = map[int]string{}
-	records = []map[int]int{}
+type Simulation struct {
+	*Circuit
+	records []map[int]int
 }
 
-func record() {
+func NewSimulation(c *Circuit) *Simulation {
+	return &Simulation{Circuit: c, records: []map[int]int{}}
+}
+
+func (s *Simulation) reset() {
+	s.records = []map[int]int{}
+}
+
+func (s *Simulation) record() {
 	r := map[int]int{}
-	for k := range monitee {
-		r[k] = wire[k]
+	for k := range s.monitee {
+		r[k] = s.get(k)
 	}
-	records = append(records, r)
+	s.records = append(s.records, r)
 }
 
-func showRecords() (out map[string]string) {
+func (s *Simulation) showRecords() (out map[string]string) {
 	fmt.Printf("%20s[%03d]: %s\n", "", 0, "0123456789012345678901234567890123456789")
 	out = map[string]string{}
-	keys := sortIntStringMapByValue(monitee)
+	keys := sortIntStringMapByValue(s.monitee)
 	for _, k := range keys {
 		r := ""
-		for t := 0; t < len(records); t++ {
-			r += fmt.Sprintf("%s", wireValueToChar(records[t][k.Key]))
+		for t := 0; t < len(s.records); t++ {
+			r += fmt.Sprintf("%s", wireValueToChar(s.records[t][k.Key]))
 		}
 		out[k.Value] = r
 		fmt.Println(fmt.Sprintf("%20s[%03d]: ", k.Value, k.Key) + r)
@@ -40,27 +40,27 @@ func showRecords() (out map[string]string) {
 	return
 }
 
-func formatWireFull(visited []int) string {
+func (w *Wires) formatWireFull(visited []int) string {
 	result := ""
-	for i := 0; i <= maxWireID; i++ {
+	for i := 0; i <= w.maxWireID; i++ {
 		ch := " "
 		if contains(visited, i) {
 			ch = "*"
 		}
-		result += fmt.Sprintf("%3d:%d%s ->%v :%s\n", i, wire[i], ch, listBonded(i), monitee[i])
+		result += fmt.Sprintf("%3d:%d%s ->%v :%s\n", i, w.get(i), ch, w.listBonded(i), w.monitee[i])
 
 	}
 	return result + "\n"
 }
 
-func formatWire(visited []int) string {
+func (w *Wires) formatWire(visited []int) string {
 	result := ""
-	for i := 0; i <= maxWireID; i++ {
+	for i := 0; i <= w.maxWireID; i++ {
 		ch := " "
 		if contains(visited, i) {
 			ch = "*"
 		}
-		result += fmt.Sprintf("%3d:%d%s ", i, wire[i], ch)
+		result += fmt.Sprintf("%3d:%d%s ", i, w.get(i), ch)
 	}
 	return result + "\n"
 }
@@ -78,44 +78,36 @@ func wireValueToChar(value int) string {
 	return ch
 }
 
-func runScenario2(scenario2 map[int]string, debugName string) map[string]string {
-	scenario := map[int][]int{}
+func runScenario2(c *Circuit, scenario2 map[int]string, debugName string) map[string]string {
+	play := []map[int]int{}
 	for k, v := range scenario2 {
-		newValues := make([]int, len(v))
 		for i, ch := range v {
 			val := 0
 			if ch == 'H' {
 				val = 1
 			}
-			newValues[i] = val
-		}
-		scenario[k] = newValues
-	}
-	return runScenario(scenario, debugName)
-}
-
-func runScenario(scenario map[int][]int, debugName string) map[string]string {
-	play := []map[int]int{}
-	for k, v := range scenario {
-		for t, val := range v {
-			if len(play) <= t {
+			if len(play) <= i {
 				play = append(play, make(map[int]int))
 			}
-			play[t][k] = val
+			play[i][k] = val
 		}
 	}
+	return runScenario(c, play, debugName)
+}
 
+func runScenario(c *Circuit, play []map[int]int, debugName string) map[string]string {
+	s := NewSimulation(c)
 	for t, set := range play {
 		for k, v := range set {
-			visit(v, k, []int{}, false)
+			c.visit(v, k, []int{}, false)
 		}
-		result := simulateAll(debugName)
+		result := c.simulateAll(debugName)
 		if !result {
 			fmt.Printf("#%3d: Simulation instable !!!!!!!!!!!!!!!!!!!!!!\n", t)
-			record()
+			s.record()
 		} else {
-			record()
+			s.record()
 		}
 	}
-	return showRecords()
+	return s.showRecords()
 }
